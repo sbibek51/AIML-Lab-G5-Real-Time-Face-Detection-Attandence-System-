@@ -1,6 +1,0 @@
-This is test file
-# Installations
-# 1. Redis Database
-pip install redis
-# 2. Insightface
-pip install insightface
