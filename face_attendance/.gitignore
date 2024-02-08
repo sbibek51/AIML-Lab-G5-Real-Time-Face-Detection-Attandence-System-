@@ -2,5 +2,5 @@
 /lib/*
 pyvenv
 .ipynb_checkpoints/
-/school_images/**
+
 /Images/**
