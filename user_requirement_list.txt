@@ -1,0 +1,2 @@
+1. checkin time
+2.checkout time
