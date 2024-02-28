@@ -4,3 +4,6 @@ pyvenv
 .ipynb_checkpoints/
 /school_images/**
 /Images/**
+
+#ignore venv
+attandence_system_bs_venv/

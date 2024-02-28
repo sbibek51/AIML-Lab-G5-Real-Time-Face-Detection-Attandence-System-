@@ -1,0 +1,9 @@
+numpy
+pandas 
+matplotlib
+scipy
+opencv-python
+
+#scipy (scientific python)
+#IDE(we will use jupyter)
+#openCV python libraries of python for image processing
