@@ -1,1 +1,0 @@
-<img src="dog.jpg" alt="Girl in jacket" style="width:500px;height:600px;">
