@@ -77,10 +77,8 @@ def mL_search_algorithm(df,feature_column,test_data,threshold=0.5):
     return person_name, role
 
 def name_prediction(image, df):
-    # test_image_data contains data of each person appearing in the image in list
-    # information of each person is in a index of list
     image_information = app_sc.get(image)
-    image_copy = test_image.copy()
+    image_copy = image.copy()
     # we can use loop to get data of every person and to manipulate the input image 
     # eg draw rectangle around recognized  person's face 
     type(image_information)
@@ -88,13 +86,14 @@ def name_prediction(image, df):
     for info in image_information:
         bbox = info['bbox'].astype(int)
         embeddings = info['embedding']
-        print(mL_search_algorithm(df,'Facial Features',embeddings))
         person_name , role = mL_search_algorithm(df,'Facial Features',embeddings)
         x1,y1,x2,y2 = info['bbox'].astype(int)
         # set text_color green if the person name is present else red 
         text_color = (0,255,0) if person_name != 'Unknown' else (0,0,255)
         cv2.rectangle(image_copy,(x1,y1),(x2,y2),text_color,2)
         cv2.putText(image_copy,person_name,(x1,y1-10),cv2.FONT_HERSHEY_DUPLEX,0.5,text_color)
+     
+    return image_copy
 
     
     
