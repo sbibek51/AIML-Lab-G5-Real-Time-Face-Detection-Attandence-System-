@@ -1,0 +1,5 @@
+website: https://insightface.ai/
+
+Insightface Github: https://github.com/deepinsight/insightface
+
+Insightface Buffalo Models: https://github.com/deepinsight/insightface/tree/master/python-package
