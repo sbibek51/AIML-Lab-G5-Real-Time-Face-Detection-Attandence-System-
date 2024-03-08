@@ -1,7 +1,3 @@
-Certainly! Here's a concise and appealing README file for your AIML project related to live face recognition:
-
----
-
 # Real-Time Face Recognition with InsightFace
 
 Welcome to our Real-Time Face Recognition project powered by InsightFace, integrated with Streamlit and Redis!
