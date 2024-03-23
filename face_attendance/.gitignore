@@ -6,4 +6,4 @@ pyvenv
 /Images/**
 
 #ignore venv
-attandence_system_bs_venv/
+attandence_system_bs*/
