@@ -4,25 +4,25 @@ import pandas as pd
 
 from insightface.app import FaceAnalysis
 from insightface.data import get_image as ins_get_image
-
-#similarity and distance calculation
+# similarity and distance calculation
 from sklearn.metrics import pairwise
 import redis
 
+db_key = 'school:register'
 # connect to redis database
-hostname = 'redis-12466.c267.us-east-1-4.ec2.cloud.redislabs.com'
-port = '12466'
+hostname = 'redis-16143.c12.us-east-1-4.ec2.cloud.redislabs.com'
+port = '16143'
 password = 'IuUBnaQGK79atnDHJpOK9qCgcgO0Xq7V'
 r = redis.StrictRedis(host=hostname,
-               port= port, password=password)
+                      port=port, password=password)
 
 # configer face analysis model
-app_sc = FaceAnalysis(name='buffalo_sc',providers=['CPUExecutionProvider'])
-app_sc.prepare(ctx_id=0,det_size=(640,640))
+app_sc = FaceAnalysis(name='buffalo_sc', providers=['CPUExecutionProvider'])
+app_sc.prepare(ctx_id=0, det_size=(640, 640))
 
 
 # name searching algorithm
-def mL_search_algorithm(df,feature_column,test_data,threshold=0.5):
+def mL_search_algorithm(df, feature_column, test_data, threshold=0.5):
     """
     Perform a machine learning search.
 
@@ -55,26 +55,27 @@ def mL_search_algorithm(df,feature_column,test_data,threshold=0.5):
     X = np.asarray(X_list)
 
     # reshape data to 1 row and as many columns as necessary
-    y = test_data.reshape(1,-1)
+    y = test_data.reshape(1, -1)
 
     # 3. Calculate cosine similarity
-    similarity = pairwise.cosine_similarity(X,y)
+    similarity = pairwise.cosine_similarity(X, y)
     similarity_array = np.array(similarity).flatten()
     df['cosine'] = similarity_array
 
     # 4. Filter the data with highest Cosine similarity
-    person_name, role = '',''
+    person_name, role = '', ''
     filter_query = df['cosine'] > threshold
     filtered_data = df[filter_query]
     if len(filtered_data) > 0:
-        filtered_data.reset_index(drop = True, inplace= True)
+        filtered_data.reset_index(drop=True, inplace=True)
         # argmax returns index of maxium_value
         cosine_argmax = filtered_data['cosine'].argmax()
-        person_name, role = filtered_data.loc[cosine_argmax][['Name','Role']]
+        person_name, role = filtered_data.loc[cosine_argmax][['Name', 'Role']]
     else:
-        person_name,role='Unknown','Unknown'
+        person_name, role = 'Unknown', 'Unknown'
 
     return person_name, role
+
 
 def name_prediction(image, df):
     image_information = app_sc.get(image)
@@ -86,14 +87,36 @@ def name_prediction(image, df):
     for info in image_information:
         bbox = info['bbox'].astype(int)
         embeddings = info['embedding']
-        person_name , role = mL_search_algorithm(df,'Facial Features',embeddings)
-        x1,y1,x2,y2 = info['bbox'].astype(int)
+        person_name, role = mL_search_algorithm(df, 'Facial Features', embeddings)
+        x1, y1, x2, y2 = info['bbox'].astype(int)
         # set text_color green if the person name is present else red 
-        text_color = (0,255,0) if person_name != 'Unknown' else (0,0,255)
-        cv2.rectangle(image_copy,(x1,y1),(x2,y2),text_color,2)
-        cv2.putText(image_copy,person_name,(x1,y1-10),cv2.FONT_HERSHEY_DUPLEX,0.5,text_color)
-     
+        text_color = (0, 255, 0) if person_name != 'Unknown' else (0, 0, 255)
+        cv2.rectangle(image_copy, (x1, y1), (x2, y2), text_color, 2)
+        cv2.putText(image_copy, person_name, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, text_color)
+
     return image_copy
 
-    
-    
+
+def retrieve_data(db_key):
+    # retrieve data from redis
+    decoded_dictionary = r.hgetall(name=db_key)
+    decoded_series = pd.Series(decoded_dictionary)
+    # Convert each element of retrive_series from bytes to 32-bit float NumPy arrays
+    decoded_series = decoded_series.apply(lambda x: np.frombuffer(x, dtype=np.float32))
+
+    # Retrieve the index of retrive_series
+    index = decoded_series.index
+
+    # Convert the index elements from bytes to strings
+    index = list(map(lambda x: x.decode(), index))
+    decoded_series.index = index
+    decoded_df = decoded_series.to_frame().reset_index()
+    decoded_df.columns = ['name_role', 'facial_features']
+    decoded_df.rename(columns={'facial_features': 'Facial Features'}, inplace=True)
+    # Split by '#' and create a new DataFrame with two columns 'Name' and 'Role'
+    temp_df = decoded_df['name_role'].str.split('#', expand=True)
+
+    # Split each part by '_' and capitalize each word
+    decoded_df[['Name', 'Role']] = temp_df.applymap(lambda x: ' '.join([word.capitalize() for word in x.split('_')]))
+
+    return decoded_df[['Name', 'Role', 'Facial Features']]

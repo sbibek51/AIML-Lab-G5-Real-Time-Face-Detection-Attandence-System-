@@ -4,3 +4,7 @@ pyvenv
 .ipynb_checkpoints/
 
 /Images/**
+/streamlit_web/.idea/**
+/Streamlit/
+/__pycache__/
+/streamlit_web/__pycache__/
