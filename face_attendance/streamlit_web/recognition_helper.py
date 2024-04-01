@@ -1,13 +1,12 @@
+from datetime import datetime
+
 import cv2
 import numpy as np
 import pandas as pd
-
+import redis
 from insightface.app import FaceAnalysis
-from insightface.data import get_image as ins_get_image
 # similarity and distance calculation
 from sklearn.metrics import pairwise
-import redis
-from datetime import datetime
 
 db_key = 'school:register'
 # connect to redis database
@@ -78,57 +77,96 @@ def mL_search_algorithm(df, feature_column, test_data, threshold=0.5):
     return person_name, role
 
 
-def name_prediction(image, df):
-    print("Inside name prediction ")
-    # Step 1: find date time
-    current_time = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+# save data/logs every minute
+class RealTimePrediction:
+    def __init__(self):
+        self.data_dict = dict(name=[], role=[], current_time=[])
 
-    # step 2: take image and apply insightface model
-    image_information = app_sc.get(image)
-    image_copy = image.copy()
-    print(image_information)
+    def reset_dict(self):
+        self.data_dict = dict(name=[], role=[], current_time=[])
 
-    # step 3: we can use loop to get data of every person and to manipulate the input image
-    # eg draw rectangle around recognized  person's face 
-    type(image_information)
-    df.head()
-    for info in image_information:
-        bbox = info['bbox'].astype(int)
-        embeddings = info['embedding']
-        person_name, role = mL_search_algorithm(df, 'Facial Features', embeddings)
-        x1, y1, x2, y2 = info['bbox'].astype(int)
-        # set text_color green if the person name is present else red 
-        text_color = (0, 255, 0) if person_name != 'Unknown' else (0, 0, 255)
-        # display rectangle around the face
-        cv2.rectangle(image_copy, (x1, y1), (x2, y2), text_color, 2)
-        # display name of person
-        cv2.putText(image_copy, person_name, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, text_color)
-        # display the current date time
-        cv2.putText(image_copy, current_time, (x1, y2 + 20), cv2.FONT_HERSHEY_DUPLEX, 0.5, text_color)
+    def save_logs_redis(self):
+        # Step 1: Create DataFrame for logs
+        df = pd.DataFrame(self.data_dict)
 
-    return image_copy
+        # Step 2: Drop duplicate data collected within the same timeframe
+        df.drop_duplicates(subset='name', inplace=True)
 
+        # Step 3: Convert the 'current_time' column to datetime format
+        df['current_time'] = pd.to_datetime(df['current_time'])
 
-def retrieve_data(db_key):
-    # retrieve data from redis
-    decoded_dictionary = r.hgetall(name=db_key)
-    decoded_series = pd.Series(decoded_dictionary)
-    # Convert each element of retrive_series from bytes to 32-bit float NumPy arrays
-    decoded_series = decoded_series.apply(lambda x: np.frombuffer(x, dtype=np.float32))
+        # Step 4: Extract lists from DataFrame
+        name_list = df['name'].tolist()
+        role_list = df['role'].tolist()
+        ctime_list = df['current_time'].tolist()
 
-    # Retrieve the index of retrive_series
-    index = decoded_series.index
+        # Step 5: Encode and push data to Redis
+        encoded_data = []
+        for name, role, ctime in zip(name_list, role_list, ctime_list):
+            if name.lower() != 'unknown':
+                concat_string = f'{name}#{role}#{ctime}'
+                encoded_data.append(concat_string)
+        if encoded_data:
+            r.lpush('attendance:logs', *encoded_data)
 
-    # Convert the index elements from bytes to strings
-    index = list(map(lambda x: x.decode(), index))
-    decoded_series.index = index
-    decoded_df = decoded_series.to_frame().reset_index()
-    decoded_df.columns = ['name_role', 'facial_features']
-    decoded_df.rename(columns={'facial_features': 'Facial Features'}, inplace=True)
-    # Split by '#' and create a new DataFrame with two columns 'Name' and 'Role'
-    temp_df = decoded_df['name_role'].str.split('#', expand=True)
+        # Step 6: Reset data_dict after saving data
+        self.reset_dict()
 
-    # Split each part by '_' and capitalize each word
-    decoded_df[['Name', 'Role']] = temp_df.map(lambda x: ' '.join([word.capitalize() for word in x.split('_')]))
+    def name_prediction(self, image, df):
+        print("Inside name prediction ")
+        # Step 1: find date time
+        current_time = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-    return decoded_df[['Name', 'Role', 'Facial Features']]
+        # step 2: take image and apply insightface model
+        image_information = app_sc.get(image)
+        image_copy = image.copy()
+        # print(image_information)
+
+        # step 3: we can use loop to get data of every person and to manipulate the input image
+        # eg draw rectangle around recognized  person's face
+        type(image_information)
+        df.head()
+        for info in image_information:
+            bbox = info['bbox'].astype(int)
+            embeddings = info['embedding']
+            person_name, role = mL_search_algorithm(df, 'Facial Features', embeddings)
+            x1, y1, x2, y2 = info['bbox'].astype(int)
+            # set text_color green if the person name is present else red
+            text_color = (0, 255, 0) if person_name != 'Unknown' else (0, 0, 255)
+            # display rectangle around the face
+            cv2.rectangle(image_copy, (x1, y1), (x2, y2), text_color, 2)
+            # display name of person
+            cv2.putText(image_copy, person_name, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, text_color)
+            # display the current date time
+            cv2.putText(image_copy, current_time, (x1, y2 + 20), cv2.FONT_HERSHEY_DUPLEX, 0.5, text_color)
+
+            # save data to class level 'data_dict' dictionary
+            self.data_dict['name'].append(person_name)
+            self.data_dict['role'].append(role)
+            self.data_dict['current_time'].append(current_time)
+
+        return image_copy
+
+    def retrieve_data(self):
+        # retrieve data from redis
+        decoded_dictionary = r.hgetall(name=db_key)
+        decoded_series = pd.Series(decoded_dictionary)
+        # Convert each element of retrive_series from bytes to 32-bit float NumPy arrays
+        decoded_series = decoded_series.apply(lambda x: np.frombuffer(x, dtype=np.float32))
+
+        # Retrieve the index of retrive_series
+        index = decoded_series.index
+
+        # Convert the index elements from bytes to strings
+        index = list(map(lambda x: x.decode(), index))
+        decoded_series.index = index
+        decoded_df = decoded_series.to_frame().reset_index()
+        decoded_df.columns = ['name_role', 'facial_features']
+        decoded_df.rename(columns={'facial_features': 'Facial Features'}, inplace=True)
+        # Split by '#' and create a new DataFrame with two columns 'Name' and 'Role'
+        temp_df = decoded_df['name_role'].str.split('#', expand=True)
+
+        # Split each part by '_' and capitalize each word
+        decoded_df[['Name', 'Role']] = temp_df.map(lambda x: ' '.join([word.capitalize() for word in x.split('_')]))
+
+        return decoded_df[['Name', 'Role', 'Facial Features']]
