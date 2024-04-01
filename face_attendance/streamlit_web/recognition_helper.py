@@ -7,6 +7,7 @@ from insightface.data import get_image as ins_get_image
 # similarity and distance calculation
 from sklearn.metrics import pairwise
 import redis
+from datetime import datetime
 
 db_key = 'school:register'
 # connect to redis database
@@ -78,9 +79,16 @@ def mL_search_algorithm(df, feature_column, test_data, threshold=0.5):
 
 
 def name_prediction(image, df):
+    print("Inside name prediction ")
+    # Step 1: find date time
+    current_time = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+    # step 2: take image and apply insightface model
     image_information = app_sc.get(image)
     image_copy = image.copy()
-    # we can use loop to get data of every person and to manipulate the input image 
+    print(image_information)
+
+    # step 3: we can use loop to get data of every person and to manipulate the input image
     # eg draw rectangle around recognized  person's face 
     type(image_information)
     df.head()
@@ -91,8 +99,12 @@ def name_prediction(image, df):
         x1, y1, x2, y2 = info['bbox'].astype(int)
         # set text_color green if the person name is present else red 
         text_color = (0, 255, 0) if person_name != 'Unknown' else (0, 0, 255)
+        # display rectangle around the face
         cv2.rectangle(image_copy, (x1, y1), (x2, y2), text_color, 2)
+        # display name of person
         cv2.putText(image_copy, person_name, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, text_color)
+        # display the current date time
+        cv2.putText(image_copy, current_time, (x1, y2 + 20), cv2.FONT_HERSHEY_DUPLEX, 0.5, text_color)
 
     return image_copy
 
@@ -117,6 +129,6 @@ def retrieve_data(db_key):
     temp_df = decoded_df['name_role'].str.split('#', expand=True)
 
     # Split each part by '_' and capitalize each word
-    decoded_df[['Name', 'Role']] = temp_df.applymap(lambda x: ' '.join([word.capitalize() for word in x.split('_')]))
+    decoded_df[['Name', 'Role']] = temp_df.map(lambda x: ' '.join([word.capitalize() for word in x.split('_')]))
 
     return decoded_df[['Name', 'Role', 'Facial Features']]
