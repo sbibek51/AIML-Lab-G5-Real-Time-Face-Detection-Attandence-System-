@@ -1,5 +1,5 @@
+import os
 from datetime import datetime
-
 import cv2
 import numpy as np
 import pandas as pd
@@ -180,7 +180,6 @@ class RegistrationForm:
         self.sample = 0
 
     def get_embeddings(self, image):
-
         # step 2: take image and apply insightface model
         embedding_list = []
         image_information = app_sc.get(image)
@@ -197,3 +196,35 @@ class RegistrationForm:
             cv2.rectangle(image_copy, (x1, y1), (x2, y2), text_color, 2)
             cv2.putText(image_copy, text, (x1, y2 + 20), cv2.FONT_HERSHEY_DUPLEX, 0.5, text_color)
         return image_copy, embedding_list
+
+    def redis_save_data(self, name, role):
+
+        # name validation
+        if name is not None and name.strip() != '':
+            key = f'{name}#{role}'
+        else:
+            return 'name_false'
+
+        # face embedding validation
+        if 'face_embedding.txt' not in os.listdir():
+            return 'file_false'
+
+        # step 1: Load face_embedding.txt
+        x_array = np.loadtxt('face_embedding.txt', dtype=np.float32)  # flattened array
+        # step 2: convert to array (proper shape)
+        samples = int(x_array.size / 512)
+        x_array = x_array.reshape(samples, 512)
+        x_array = np.asarray(x_array)
+
+        # step 3: calculate mean embeddings
+        x_mean = x_array.mean(axis=0)
+        x_mean = x_array.astype(np.float32)
+        x_mean_bytes = x_mean.bytes()
+
+        # step 4 : Save data to redis database
+        r.hset(name='school:register', key=key, value=x_mean_bytes)
+
+        os.remove('face_embedding.txt')
+        self.reset()
+
+        return True

@@ -45,6 +45,12 @@ def video_frame_callback(frame):
     img = frame.to_ndarray(format="bgr24")  # 3d numpy array
     prediction_img, embeddings = registration_form.get_embeddings(img)
     print("Capturing prediction image")
+
+    # save data to local computer
+    if embeddings is not None:
+        with open('face_embedding.txt', mode='ab') as f:
+            np.savetxt(f, embeddings)
+
     return av.VideoFrame.from_ndarray(prediction_img, format="bgr24")
 
 
@@ -53,5 +59,10 @@ webrtc_streamer(key="real_time_prediction", video_frame_callback=video_frame_cal
 # step 3: save data in redis database
 
 if st.button('Submit'):
-    st.write(f'Person name : ', person_name)
-    st.write(f'Role : ', role)
+    response_message = registration_form.redis_save_data(person_name, role)
+    if response_message:
+        st.success(f'{person_name} registered successfully.')
+    elif response_message == 'name_false':
+        st.error("Please enter the name. Name cannot be empty")
+    elif response_message == 'file_false':
+        st.error('Issue in saving face embeddings. Reload the page and try again.')
