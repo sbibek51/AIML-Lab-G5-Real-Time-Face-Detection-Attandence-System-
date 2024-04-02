@@ -218,8 +218,8 @@ class RegistrationForm:
 
         # step 3: calculate mean embeddings
         x_mean = x_array.mean(axis=0)
-        x_mean = x_array.astype(np.float32)
-        x_mean_bytes = x_mean.bytes()
+        x_mean = x_mean.astype(np.float32)
+        x_mean_bytes = x_mean.tobytes()
 
         # step 4 : Save data to redis database
         r.hset(name='school:register', key=key, value=x_mean_bytes)
