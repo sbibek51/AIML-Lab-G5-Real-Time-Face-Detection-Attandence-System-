@@ -170,3 +170,30 @@ class RealTimePrediction:
         decoded_df[['Name', 'Role']] = temp_df.map(lambda x: ' '.join([word.capitalize() for word in x.split('_')]))
 
         return decoded_df[['Name', 'Role', 'Facial Features']]
+
+
+class RegistrationForm:
+    def __init__(self):
+        self.sample = 0
+
+    def reset(self):
+        self.sample = 0
+
+    def get_embeddings(self, image):
+
+        # step 2: take image and apply insightface model
+        embedding_list = []
+        image_information = app_sc.get(image)
+        image_copy = image.copy()
+        for info in image_information:
+            self.sample += 1
+            text = f'Frame recorded {self.sample}'
+            embedding = info['embedding']
+            embedding_list.append(embedding)
+            x1, y1, x2, y2 = info['bbox'].astype(int)
+            # set text_color green if the person name is present else red
+            text_color = (0, 255, 255)
+            # display rectangle around the face
+            cv2.rectangle(image_copy, (x1, y1), (x2, y2), text_color, 2)
+            cv2.putText(image_copy, text, (x1, y2 + 20), cv2.FONT_HERSHEY_DUPLEX, 0.5, text_color)
+        return image_copy, embedding_list

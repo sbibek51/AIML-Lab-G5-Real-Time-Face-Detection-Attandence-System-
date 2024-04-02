@@ -1,5 +1,5 @@
-from Home import st
-from Home import helper
+import streamlit as st
+import recognition_helper as helper
 from streamlit_webrtc import webrtc_streamer
 import av
 import time
