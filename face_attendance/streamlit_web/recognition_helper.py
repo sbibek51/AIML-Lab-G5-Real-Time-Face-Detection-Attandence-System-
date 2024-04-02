@@ -77,6 +77,17 @@ def mL_search_algorithm(df, feature_column, test_data, threshold=0.5):
     return person_name, role
 
 
+def attendance_status(duration):
+    if pd.Series(duration).isnull().all():
+        return 'Absent'
+    elif duration >= 0 and duration < 1:
+        return 'Absent (< 1hr)'
+    elif duration >= 1 and duration < 4:
+        return 'Half Day (<4 hrs)'
+    else:
+        return 'Present'
+
+
 # save data/logs every minute
 class RealTimePrediction:
     def __init__(self):
