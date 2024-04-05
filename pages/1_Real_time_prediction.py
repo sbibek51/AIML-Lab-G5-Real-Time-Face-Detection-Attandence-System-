@@ -42,4 +42,4 @@ def video_frame_callback(frame):
 
 webrtc_streamer(key="real_time_prediction", video_frame_callback=video_frame_callback,
 	rtc_configuration={
-        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}])
+        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
