@@ -1,4 +1,9 @@
+numpy
 pandas
-matplotlib
-scipy
-opencv-python
+redis
+opencv-python-headless
+scikit-learn
+streamlit
+streamlit-webrtc
+insightface
+onnxruntime

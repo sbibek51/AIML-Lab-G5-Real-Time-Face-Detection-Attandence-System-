@@ -80,9 +80,9 @@ def mL_search_algorithm(df, feature_column, test_data, threshold=0.5):
 def attendance_status(duration):
     if pd.Series(duration).isnull().all():
         return 'Absent'
-    elif duration >= 0 and duration < 1:
+    elif 0 <= duration < 1:
         return 'Absent (< 1hr)'
-    elif duration >= 1 and duration < 4:
+    elif 1 <= duration < 4:
         return 'Half Day (<4 hrs)'
     else:
         return 'Present'
